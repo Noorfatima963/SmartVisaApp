@@ -1,27 +1,22 @@
-// navigation/AppNavigator.js
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 
-// --- Screens Imports ---
-
-// 1. Launch & Auth
 import SplashScreen from '../screens/SplashScreen';
-import StartScreen from '../screens/StartScreen'; 
+import StartScreen from '../screens/StartScreen';
 import SignIn from '../screens/Auth/SignIn';
+import SignUp from '../screens/Auth/SignUp';
 
-// 2. Onboarding Flow
-import Step1_Country from '../screens/Onboarding/Step1_Country';
-import Step2_VisaType from '../screens/Onboarding/Step2_VisaType';
+// Onboarding — 5 focused steps
+import Step1_PersonalInfo from '../screens/Onboarding/Step1_PersonalInfo';
+import Step2_Country from '../screens/Onboarding/Step2_Country';
 import Step3_Education from '../screens/Onboarding/Step3_Education';
-import Step4_English from '../screens/Onboarding/Step4_English';
+import Step4_Language from '../screens/Onboarding/Step4_Language';
 import Step5_Financial from '../screens/Onboarding/Step5_Financial';
 
-// 3. Main App Hub
-import Dashboard from '../screens/Dashboard'; 
-import ProfileScreen from '../screens/ProfileScreen'; 
+import Dashboard from '../screens/Dashboard';
+import Profile from '../screens/Profile';
 
-// 4. Feature Tools
 import EligibilityScreen from '../screens/EligibilityScreen';
 import DocumentCheckerScreen from '../screens/DocumentCheckerScreen';
 import UniversityCompareScreen from '../screens/UniversityCompareScreen';
@@ -35,31 +30,21 @@ const Stack = createNativeStackNavigator();
 export default function AppNavigator() {
   return (
     <NavigationContainer>
-      <Stack.Navigator 
-        initialRouteName="Splash" 
-        screenOptions={{ 
-          headerShown: false, 
-          animation: 'slide_from_right' 
-        }}
-      >
-
-        {/* --- 1. STARTUP FLOW --- */}
+      <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Start" component={StartScreen} />
         <Stack.Screen name="SignIn" component={SignIn} />
+        <Stack.Screen name="SignUp" component={SignUp} />
 
-        {/* --- 2. ONBOARDING LOOP --- */}
-        <Stack.Screen name="Step1_Country" component={Step1_Country} />
-        <Stack.Screen name="Step2_VisaType" component={Step2_VisaType} />
+        {/* Onboarding */}
+        <Stack.Screen name="Step1_PersonalInfo" component={Step1_PersonalInfo} />
+        <Stack.Screen name="Step2_Country" component={Step2_Country} />
         <Stack.Screen name="Step3_Education" component={Step3_Education} />
-        <Stack.Screen name="Step4_English" component={Step4_English} />
+        <Stack.Screen name="Step4_Language" component={Step4_Language} />
         <Stack.Screen name="Step5_Financial" component={Step5_Financial} />
 
-        {/* --- 3. MAIN DASHBOARD --- */}
         <Stack.Screen name="Dashboard" component={Dashboard} />
-        <Stack.Screen name="Profile" component={ProfileScreen} />
-
-        {/* --- 4. TOOLS & FEATURES --- */}
+        <Stack.Screen name="Profile" component={Profile} />
         <Stack.Screen name="SuccessProbability" component={SuccessProbabilityScreen} />
         <Stack.Screen name="DocumentChecker" component={DocumentCheckerScreen} />
         <Stack.Screen name="Eligibility" component={EligibilityScreen} />
@@ -67,7 +52,6 @@ export default function AppNavigator() {
         <Stack.Screen name="VisaTimeline" component={VisaTimelineScreen} />
         <Stack.Screen name="CostEstimator" component={CostEstimatorScreen} />
         <Stack.Screen name="Chatbot" component={ChatbotScreen} />
-
       </Stack.Navigator>
     </NavigationContainer>
   );

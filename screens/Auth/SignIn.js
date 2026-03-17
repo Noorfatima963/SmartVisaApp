@@ -1,155 +1,138 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, StatusBar
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../context/AuthContext';
+import { getOnboardingDraft, isProfileComplete, setProfileComplete } from '../../services/storage';
+import api from '../../services/api';
 
-// 1. 'route' prop receive karna zaroori hai data ke liye
-export default function SignIn({ route, navigation }) {
-  // 2. Step 5 se aya hua data extract karna
-  const { finalUserData } = route.params || {};
+const STEP_SCREENS = {
+  1: 'Step1_PersonalInfo',
+  2: 'Step2_Country',
+  3: 'Step3_Education',
+  4: 'Step4_Language',
+  5: 'Step5_Financial',
+};
+
+export default function SignIn({ navigation }) {
+  const { login } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Missing Fields', 'Please enter your email and password.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await login(email.trim().toLowerCase(), password);
+
+      const profileDone = await isProfileComplete();
+      if (profileDone) {
+        navigation.reset({ index: 0, routes: [{ name: 'Dashboard' }] });
+      } else {
+        try {
+          const profile = await api.profile.get();
+          if (profile && (profile.nationality || profile.residence_country || (profile.education_history && profile.education_history.length > 0))) {
+            await setProfileComplete(true);
+            navigation.reset({ index: 0, routes: [{ name: 'Dashboard' }] });
+            return;
+          }
+        } catch (e) {
+          console.log('Profile fetch error on login:', e.message);
+        }
+
+        const draft = await getOnboardingDraft();
+        const step = draft?.step_reached || 1;
+        const screen = STEP_SCREENS[step] || 'Step1_PersonalInfo';
+        navigation.reset({ index: 0, routes: [{ name: screen }] });
+      }
+    } catch (err) {
+      Alert.alert('Login Failed', err.message || 'Invalid email or password.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Welcome Back!</Text>
-      <Text style={styles.subtitle}>Sign in to your SmartVisa account.</Text>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F5F8FF" />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        placeholderTextColor="#777"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        placeholderTextColor="#777"
-      />
-      
-      {/* Forgot Password Link */}
-      <TouchableOpacity style={styles.forgot}>
-        <Text style={styles.forgotText}>Forgot Password?</Text>
-      </TouchableOpacity>
+          <Text style={styles.title}>Welcome Back!</Text>
+          <Text style={styles.subtitle}>Sign in to your SmartVisa account.</Text>
 
-      <TouchableOpacity
-        style={[styles.button, { opacity: email && password ? 1 : 0.6 }]}
-        disabled={!email || !password}
-        onPress={() => {
-            // Login ke baad Dashboard par jana (Data sath lekar)
-            navigation.reset({
-                index: 0,
-                routes: [{ name: 'Dashboard', params: finalUserData }], 
-            });
-        }} 
-      >
-        <Text style={styles.buttonText}>Sign In</Text>
-      </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            placeholderTextColor="#777"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholderTextColor="#777"
+          />
 
-      <Text style={styles.orText}>OR</Text>
+          <TouchableOpacity style={styles.forgot}>
+            <Text style={styles.forgotText}>Forgot Password?</Text>
+          </TouchableOpacity>
 
-      <View style={styles.socialButtons}>
-        <TouchableOpacity style={styles.socialButton}><Text style={styles.socialText}>Google</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.socialButton}><Text style={styles.socialText}>Apple</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.socialButton}><Text style={styles.socialText}>Facebook</Text></TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            disabled={loading}
+            onPress={handleLogin}
+          >
+            {loading
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.buttonText}>Sign In</Text>
+            }
+          </TouchableOpacity>
 
-      {/* --- 3. Added Footer Section Here --- */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Don't have an account? </Text>
-        
-        <TouchableOpacity onPress={() => {
-            // SignUp par bhej rahe hain data ke sath
-            navigation.navigate('SignUp', { finalUserData });
-        }}>
-          <Text style={styles.signupText}>Sign Up</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+              <Text style={styles.signupText}>Sign Up</Text>
+            </TouchableOpacity>
+          </View>
 
-    </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 25, justifyContent: 'center', backgroundColor: '#F5F8FF' },
+  container: { flex: 1, backgroundColor: '#F5F8FF' },
+  scrollContent: { flexGrow: 1, padding: 25, justifyContent: 'center' },
   title: { fontSize: 32, fontWeight: '800', color: '#1A237E', marginBottom: 5, textAlign: 'center' },
   subtitle: { fontSize: 16, color: '#555', marginBottom: 40, textAlign: 'center' },
-  input: { 
-    width: '100%', 
-    borderWidth: 1, 
-    borderColor: '#ccc', 
-    borderRadius: 10, 
-    padding: 15, 
-    marginVertical: 8,
-    backgroundColor: '#fff',
-    fontSize: 16,
+  input: {
+    width: '100%', borderWidth: 1, borderColor: '#ccc', borderRadius: 10,
+    padding: 15, marginVertical: 8, backgroundColor: '#fff', fontSize: 16,
   },
-  forgot: {
-    alignSelf: 'flex-end',
-    marginBottom: 20,
+  forgot: { alignSelf: 'flex-end', marginBottom: 20 },
+  forgotText: { color: '#1A237E', fontWeight: '600' },
+  button: {
+    backgroundColor: '#1A237E', paddingVertical: 14, borderRadius: 10,
+    marginTop: 10, width: '100%', alignItems: 'center', elevation: 4,
   },
-  forgotText: {
-    color: '#0b3d91',
-    fontWeight: '600',
-  },
-  button: { 
-    backgroundColor: '#0b3d91', // Primary Button Color
-    paddingVertical: 14, 
-    borderRadius: 10, 
-    marginTop: 10,
-    width: '100%',
-    alignItems: 'center',
-    elevation: 4,
-  },
-  buttonText: { 
-    color: '#fff', 
-    fontWeight: 'bold', 
-    fontSize: 17 
-  },
-  orText: { 
-    marginVertical: 25, 
-    fontWeight: 'bold', 
-    color: '#666', 
-    textAlign: 'center' 
-  },
-  socialButtons: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    width: '100%' 
-  },
-  socialButton: { 
-    backgroundColor: '#fff', 
-    padding: 12, 
-    borderRadius: 10, 
-    minWidth: '30%', 
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  socialText: { 
-    color: '#1A237E', 
-    fontWeight: '600' 
-  },
-
-  // --- New Styles for Footer ---
-  footer: { 
-    flexDirection: 'row', 
-    justifyContent: 'center', 
-    marginTop: 30,
-    marginBottom: 20 
-  },
-  footerText: { 
-    color: '#666',
-    fontSize: 15
-  },
-  signupText: { 
-    color: '#FFD700', // Gold color for standout (ya #1A237E use karein theme match ke liye)
-    fontWeight: 'bold',
-    fontSize: 15,
-    marginLeft: 5
-  }
+  buttonDisabled: { opacity: 0.7 },
+  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 17 },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 30 },
+  footerText: { color: '#666', fontSize: 15 },
+  signupText: { color: '#FFD700', fontWeight: 'bold', fontSize: 15, marginLeft: 5 },
 });

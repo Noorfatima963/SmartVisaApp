@@ -1,48 +1,59 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
+import { getOnboardingDraft } from '../services/storage';
 
-export default function Profile({ navigation, route }) {
-  
-  // Dashboard se aya hua data (Agar hai to)
-  const userData = route.params?.userData || {};
-  
-  // Default Values (Agar data nahi aya)
-  const userName = "Noor Fatima ";
-  const userEmail = "noor447@student.com";
-  const country = userData.selectedCountry || "Not Selected";
-  const visa = userData.visaType || "Student";
+export default function Profile({ navigation }) {
+  const { user, logout } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Logout Logic
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  async function loadProfile() {
+    try {
+      const data = await api.profile.get();
+
+      const draft = await getOnboardingDraft();
+      if (draft) {
+        data.target_country = draft.target_country;
+        data.target_degree_type = draft.target_degree_type;
+      }
+
+      setProfile(data);
+    } catch (err) {
+      console.log('Failed to fetch profile', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const userName = profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}` : (user?.name || 'Student');
+  const userEmail = profile?.user?.email || user?.email || 'No Email';
+  const country = profile?.target_country || "Not Selected";
+  const visa = profile?.target_degree_type || "N/A";
+
   const handleLogout = async () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Logout", 
-          style: "destructive", 
-          onPress: async () => {
-            // Memory clear karein
-            await AsyncStorage.clear();
-            // Start Screen par wapas bhejen
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Start' }],
-            });
-          }
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout", style: "destructive", onPress: async () => {
+          await logout();
+          navigation.reset({ index: 0, routes: [{ name: 'Start' }] });
         }
-      ]
-    );
+      }
+    ]);
   };
 
   const SettingItem = ({ icon, title, isRed }) => (
     <TouchableOpacity style={styles.settingItem}>
       <View style={styles.settingLeft}>
         <Text style={styles.settingIcon}>{icon}</Text>
-        <Text style={[styles.settingText, isRed && {color: 'red'}]}>{title}</Text>
+        <Text style={[styles.settingText, isRed && { color: 'red' }]}>{title}</Text>
       </View>
       <Text style={styles.arrow}>›</Text>
     </TouchableOpacity>
@@ -50,7 +61,7 @@ export default function Profile({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -60,47 +71,58 @@ export default function Profile({ navigation, route }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        
+
         {/* Profile Card */}
-        <View style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-             <Text style={{fontSize: 40}}>👨‍🎓</Text>
+        {loading ? (
+          <ActivityIndicator size="large" color="#1A237E" style={{ marginVertical: 30 }} />
+        ) : (
+          <View style={styles.profileCard}>
+            <View style={styles.avatarContainer}>
+              <Text style={{ fontSize: 40 }}>👨‍🎓</Text>
+            </View>
+            <Text style={styles.name}>{userName}</Text>
+            <Text style={styles.email}>{userEmail}</Text>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>Premium Member 🌟</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={() => navigation.navigate('Step1_PersonalInfo')}
+            >
+              <Text style={styles.editBtnText}>Edit Profile ✏️</Text>
+            </TouchableOpacity>
           </View>
-          <Text style={styles.name}>{userName}</Text>
-          <Text style={styles.email}>{userEmail}</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>Premium Member 🌟</Text>
-          </View>
-        </View>
+        )}
 
         {/* User Stats */}
         <View style={styles.statsContainer}>
-            <View style={styles.statBox}>
-                <Text style={styles.statLabel}>Target</Text>
-                <Text style={styles.statValue}>{country}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.statBox}>
-                <Text style={styles.statLabel}>Visa Type</Text>
-                <Text style={styles.statValue}>{visa}</Text>
-            </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>Target</Text>
+            <Text style={styles.statValue}>{country}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>Visa Type</Text>
+            <Text style={styles.statValue}>{visa}</Text>
+          </View>
         </View>
 
         {/* Settings Menu */}
         <Text style={styles.sectionTitle}>Settings</Text>
-        
+
         <View style={styles.menuContainer}>
-            <SettingItem icon="🔔" title="Notifications" />
-            <SettingItem icon="🔒" title="Privacy & Security" />
-            <SettingItem icon="💳" title="Subscription" />
-            <SettingItem icon="🎧" title="Help & Support" />
+          <SettingItem icon="🔔" title="Notifications" />
+          <SettingItem icon="🔒" title="Privacy & Security" />
+          <SettingItem icon="💳" title="Subscription" />
+          <SettingItem icon="🎧" title="Help & Support" />
         </View>
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <Text style={styles.logoutText}>Log Out</Text>
+          <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
-        
+
         <Text style={styles.version}>App Version 1.0.0</Text>
 
       </ScrollView>
@@ -110,10 +132,10 @@ export default function Profile({ navigation, route }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F8FF' },
-  
-  header: { 
-    flexDirection: 'row', alignItems: 'center', padding: 20, 
-    backgroundColor: '#1A237E', elevation: 5 
+
+  header: {
+    flexDirection: 'row', alignItems: 'center', padding: 20,
+    backgroundColor: '#1A237E', elevation: 5
   },
   backBtn: { marginRight: 15 },
   backText: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
@@ -132,8 +154,10 @@ const styles = StyleSheet.create({
   },
   name: { fontSize: 22, fontWeight: 'bold', color: '#1A237E' },
   email: { fontSize: 14, color: '#666', marginBottom: 10 },
-  badge: { backgroundColor: '#FFF9C4', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10 },
+  badge: { backgroundColor: '#FFF9C4', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10, marginBottom: 15 },
   badgeText: { color: '#FBC02D', fontWeight: 'bold', fontSize: 12 },
+  editBtn: { backgroundColor: '#E8EAF6', paddingHorizontal: 20, paddingVertical: 8, borderRadius: 10 },
+  editBtnText: { color: '#1A237E', fontWeight: 'bold', fontSize: 14 },
 
   // Stats
   statsContainer: {

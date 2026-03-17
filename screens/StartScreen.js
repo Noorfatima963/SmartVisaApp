@@ -10,49 +10,30 @@ export default function StartScreen({ navigation }) {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={() =>
-          // Navigation logic for Onboarding is correct.
-          navigation.navigate('Onboarding', {
-            screen: 'Step1_Country',
-            params: { selectedCountry: 'Pakistan' },
-          })
-        }
+        onPress={() => navigation.navigate('SignUp')}
       >
         <Text style={styles.buttonText}>Get Started</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.signinBtn}
+        onPress={() => navigation.navigate('SignIn')}
+      >
+        <Text style={styles.signinText}>Already have an account? Sign In</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    backgroundColor: '#F5F8FF' // Light background
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#1A237E', // Navy Text
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 30,
-  },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F8FF' },
+  title: { fontSize: 28, fontWeight: '800', color: '#1A237E', marginBottom: 10 },
+  subtitle: { fontSize: 16, color: '#666', marginBottom: 30 },
   button: {
-    backgroundColor: '#0b3d91', // Primary Button Color
-    paddingVertical: 15,
-    paddingHorizontal: 50,
-    borderRadius: 10,
-    marginTop: 20,
-    elevation: 5,
+    backgroundColor: '#1A237E', paddingVertical: 15, paddingHorizontal: 50,
+    borderRadius: 10, marginTop: 20, elevation: 5,
   },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 18,
-  },
+  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
+  signinBtn: { marginTop: 20, padding: 10 },
+  signinText: { color: '#1A237E', fontWeight: '600', fontSize: 15 },
 });

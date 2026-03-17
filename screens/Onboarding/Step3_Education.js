@@ -1,211 +1,185 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  StyleSheet, 
-  Alert, 
-  KeyboardAvoidingView, 
-  Platform, 
-  ScrollView 
-} from 'react-native';
+/**
+ * Step 3 — Education
+ * API: POST /api/profile/education/
+ * Required: level, degree_title, institute_name, start_date, score
+ * Optional: end_date, is_completed
+ * Also saves: backlogs (used in assessments, not in this API)
+ */
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-// Custom Components
+import { Picker } from '@react-native-picker/picker';
 import PrimaryButton from '../../components/PrimaryButton';
 import ProgressDots from '../../components/ProgressDots';
+import { saveOnboardingStep, getOnboardingDraft } from '../../services/storage';
+import api from '../../services/api';
 
-const Step3_Education = ({ route, navigation }) => {
-  // Piche se aya hua Data (Step 1 & 2)
-  const { selectedCountry = 'Pakistan', visaType = 'Student' } = route.params || {};
-  
-  const [degree, setDegree] = useState('');
-  const [cgpa, setCgpa] = useState('');
+const LEVELS = [
+  { label: 'Bachelors / Under-Graduate', value: 'bachelors' },
+  { label: 'Masters / Post-Graduate', value: 'masters' },
+  { label: 'High School / A-Levels', value: 'high_school' },
+  { label: 'PhD / Doctorate', value: 'phd' },
+];
 
-  // --- SMART LOGIC ---
-  const handleNext = () => {
-    // 1. Validation (Khali fields rokna)
-    if (!degree.trim()) {
-      Alert.alert("Missing Degree", "Please enter your highest qualification (e.g. High School or Bachelor's).");
+export default function Step3_Education({ navigation }) {
+  const [level, setLevel] = useState('bachelors');
+  const [degreeTitle, setDegreeTitle] = useState('');
+  const [institute, setInstitute] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [isCompleted, setIsCompleted] = useState(true);
+  const [score, setScore] = useState('');
+  const [backlogs, setBacklogs] = useState('0');
+
+  useEffect(() => {
+    async function initData() {
+      try {
+        const d = await getOnboardingDraft();
+        let profile = null;
+        try {
+          profile = await api.profile.get();
+        } catch (e) { console.log('Profile fetch error:', e.message); }
+
+        const edu = profile?.education_history?.[0] || {};
+
+        const pLevel = d?.edu_level || edu?.level;
+        const pTitle = d?.degree_title || edu?.degree_title;
+        const pInst = d?.institute_name || edu?.institute_name;
+        const pStart = d?.start_date || edu?.start_date;
+        const pEnd = d?.end_date || edu?.end_date;
+        const pComp = d?.is_completed !== undefined ? d.is_completed : edu?.is_completed;
+        const pScore = d?.score || edu?.score;
+        const pBack = d?.backlogs !== undefined ? d.backlogs : edu?.backlogs;
+
+        if (pLevel) setLevel(pLevel);
+        if (pTitle) setDegreeTitle(pTitle);
+        if (pInst) setInstitute(pInst);
+        if (pStart) setStartDate(pStart);
+        if (pEnd) setEndDate(pEnd);
+        if (pComp !== undefined && pComp !== null) setIsCompleted(pComp);
+        if (pScore) setScore(pScore.toString());
+        if (pBack !== undefined && pBack !== null) setBacklogs(pBack.toString());
+      } catch (err) { }
+    }
+    initData();
+  }, []);
+
+  const handleNext = async () => {
+    if (!degreeTitle.trim() || !institute.trim() || !startDate.trim() || !score.trim()) {
+      Alert.alert('Required Fields', 'Please fill Degree Title, Institute, Start Date and Score.');
       return;
     }
-    if (!cgpa.trim()) {
-      Alert.alert("Missing CGPA", "Please enter your CGPA or Percentage.");
+    // Validate date format YYYY-MM-DD
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(startDate.trim())) {
+      Alert.alert('Invalid Date', 'Start date must be in YYYY-MM-DD format. e.g. 2019-09-01');
+      return;
+    }
+    if (endDate.trim() && !dateRegex.test(endDate.trim())) {
+      Alert.alert('Invalid Date', 'End date must be in YYYY-MM-DD format. e.g. 2023-06-30');
       return;
     }
 
-    // 2. Number Conversion & Safety Check
-    const cgpaValue = parseFloat(cgpa);
-    if (isNaN(cgpaValue) || cgpaValue > 100 || cgpaValue < 0) {
-      Alert.alert("Invalid Score", "Please enter a valid CGPA (0.0 - 4.0) or Percentage (0 - 100).");
-      return;
-    }
-
-    // 3. Data Object Creation (For AI Calculation later)
-    const educationData = {
-      degree: degree.trim(),
-      cgpa: cgpaValue
-    };
-
-    // 4. Navigation to Step 4
-    navigation.navigate('Step4_English', {
-      selectedCountry,
-      visaType,
-      educationData, // Ab ye Object form mein ja raha hai
+    await saveOnboardingStep(3, {
+      edu_level: level,
+      degree_title: degreeTitle.trim(),
+      institute_name: institute.trim(),
+      start_date: startDate.trim(),
+      end_date: endDate.trim() || null,
+      is_completed: isCompleted,
+      score: score.trim(),
+      backlogs: parseInt(backlogs) || 0,
     });
+    navigation.navigate('Step4_Language');
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      
-      {/* 1. Top Section: Progress Bar */}
-      <View style={styles.topSection}>
-         <ProgressDots step={3} total={5} />
-      </View>
+    <SafeAreaView style={s.container}>
+      <View style={s.top}><ProgressDots step={3} total={5} /></View>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+          <Text style={s.badge}>Step 3 of 5</Text>
+          <Text style={s.title}>Education Background</Text>
+          <Text style={s.sub}>Your most recent qualification</Text>
 
-      {/* Keyboard Handling: Inputs upar ajayenge jab keyboard khulega */}
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : "height"} 
-        style={styles.keyboardView}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          
-          <Text style={styles.stepBadge}>Step 3 of 5</Text>
-          <Text style={styles.mainTitle}>Academic Profile</Text>
-          <Text style={styles.subTitle}>
-            Enter your most recent educational details for <Text style={{fontWeight:'bold', color:'#1A237E'}}>{selectedCountry}</Text>.
-          </Text>
-
-          {/* Degree Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Highest Qualification</Text>
-            <TextInput 
-              placeholder="e.g. BS Computer Science / A-Levels" 
-              style={styles.input} 
-              value={degree} 
-              onChangeText={setDegree} 
-              placeholderTextColor="#999" 
-            />
-          </View>
-          
-          {/* CGPA Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>CGPA or Percentage</Text>
-            <TextInput 
-              placeholder="e.g. 3.5 or 85%" 
-              keyboardType="decimal-pad" 
-              style={styles.input} 
-              value={cgpa} 
-              onChangeText={setCgpa} 
-              placeholderTextColor="#999" 
-            />
-            <Text style={styles.hint}>* Use 0.0 - 4.0 for CGPA or 0-100 for Percentage.</Text>
+          <View style={s.field}>
+            <Text style={s.label}>Education Level *</Text>
+            <View style={s.pickerBox}>
+              <Picker selectedValue={level} onValueChange={setLevel} dropdownIconColor="#1A237E">
+                {LEVELS.map(l => <Picker.Item key={l.value} label={l.label} value={l.value} color="#000" />)}
+              </Picker>
+            </View>
           </View>
 
+          <View style={s.field}>
+            <Text style={s.label}>Degree Title *</Text>
+            <TextInput style={s.input} value={degreeTitle} onChangeText={setDegreeTitle} placeholder="e.g. BS Computer Science" />
+          </View>
+
+          <View style={s.field}>
+            <Text style={s.label}>Institute / University Name *</Text>
+            <TextInput style={s.input} value={institute} onChangeText={setInstitute} placeholder="e.g. FAST NUCES, Lahore" />
+          </View>
+
+          <View style={s.row}>
+            <View style={[s.field, { flex: 1, marginRight: 8 }]}>
+              <Text style={s.label}>Start Date *</Text>
+              <TextInput style={s.input} value={startDate} onChangeText={setStartDate} placeholder="2019-09-01" keyboardType="numbers-and-punctuation" />
+            </View>
+            <View style={[s.field, { flex: 1 }]}>
+              <Text style={s.label}>End Date</Text>
+              <TextInput style={s.input} value={endDate} onChangeText={setEndDate} placeholder="2023-06-30" keyboardType="numbers-and-punctuation" />
+            </View>
+          </View>
+
+          <View style={s.field}>
+            <Text style={s.label}>Completed?</Text>
+            <View style={s.optRow}>
+              <TouchableOpacity style={[s.optBtn, isCompleted && s.optActive]} onPress={() => setIsCompleted(true)}>
+                <Text style={[s.optText, isCompleted && s.optTextActive]}>✓ Yes, Completed</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.optBtn, !isCompleted && s.optActive]} onPress={() => setIsCompleted(false)}>
+                <Text style={[s.optText, !isCompleted && s.optTextActive]}>⏳ In Progress</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={s.row}>
+            <View style={[s.field, { flex: 1, marginRight: 8 }]}>
+              <Text style={s.label}>Score / GPA *</Text>
+              <TextInput style={s.input} value={score} onChangeText={setScore} placeholder="3.5 or 82%" keyboardType="decimal-pad" />
+              <Text style={s.hint}>CGPA (0–4.0) or Percentage</Text>
+            </View>
+            <View style={[s.field, { flex: 1 }]}>
+              <Text style={s.label}>Backlogs</Text>
+              <TextInput style={s.input} value={backlogs} onChangeText={setBacklogs} placeholder="0" keyboardType="number-pad" />
+              <Text style={s.hint}>0 if none</Text>
+            </View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {/* 3. Bottom Section: Next Button */}
-      <View style={styles.bottomSection}>
-        <PrimaryButton
-          title="Continue to English Test"
-          onPress={handleNext}
-        />
-      </View>
-
+      <View style={s.bottom}><PrimaryButton title="Continue to Language Test →" onPress={handleNext} /></View>
     </SafeAreaView>
   );
-};
+}
 
-const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#F5F8FF' 
-  },
-  
-  topSection: {
-    alignItems: 'center',
-    marginTop: 20, // Thoda gap
-    marginBottom: 10
-  },
-
-  keyboardView: {
-    flex: 1,
-    width: '100%'
-  },
-  
-  scrollContent: {
-    flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 25,
-  },
-
-  stepBadge: { 
-    fontSize: 12, 
-    color: '#1A237E', 
-    fontWeight: 'bold',
-    backgroundColor: '#E8EAF6',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: 10,
-    overflow: 'hidden'
-  },
-  
-  mainTitle: { 
-    fontSize: 26, 
-    fontWeight: 'bold', 
-    color: '#1A237E', 
-    marginBottom: 10,
-    textAlign: 'center'
-  },
-  
-  subTitle: { 
-    fontSize: 14, 
-    color: '#666', 
-    marginBottom: 30,
-    textAlign: 'center',
-    lineHeight: 20
-  },
-
-  inputGroup: {
-    width: '100%',
-    marginBottom: 20
-  },
-
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A237E',
-    marginBottom: 6,
-    marginLeft: 5
-  },
-
-  input: { 
-    width: '100%', 
-    borderWidth: 1.5, // Thoda mota border
-    borderColor: '#E0E0E0', 
-    borderRadius: 12, 
-    padding: 15, 
-    backgroundColor: '#fff',
-    fontSize: 16,
-    color: '#333'
-  },
-
-  hint: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 5,
-    marginLeft: 5,
-    fontStyle: 'italic'
-  },
-
-  bottomSection: {
-    padding: 25,
-    width: '100%',
-    paddingBottom: 30 // Safe area for bottom swipe
-  }
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F5F8FF' },
+  top: { alignItems: 'center', marginTop: 16 },
+  scroll: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 20 },
+  badge: { fontSize: 12, color: '#1A237E', fontWeight: 'bold', backgroundColor: '#E8EAF6', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginBottom: 10, overflow: 'hidden' },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#1A237E', marginBottom: 4 },
+  sub: { fontSize: 14, color: '#666', marginBottom: 20 },
+  row: { flexDirection: 'row' },
+  field: { marginBottom: 16 },
+  label: { fontSize: 13, fontWeight: '600', color: '#1A237E', marginBottom: 6 },
+  input: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E0E0E0', borderRadius: 12, padding: 13, fontSize: 15, color: '#333' },
+  hint: { fontSize: 11, color: '#999', marginTop: 4, fontStyle: 'italic' },
+  pickerBox: { borderWidth: 1.5, borderColor: '#1A237E', borderRadius: 12, backgroundColor: '#fff', overflow: 'hidden' },
+  optRow: { flexDirection: 'row', gap: 8 },
+  optBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, borderColor: '#E0E0E0', alignItems: 'center', backgroundColor: '#fff' },
+  optActive: { borderColor: '#1A237E', backgroundColor: '#E8EAF6' },
+  optText: { color: '#666', fontWeight: '600', fontSize: 13 },
+  optTextActive: { color: '#1A237E', fontWeight: 'bold' },
+  bottom: { padding: 20, paddingBottom: 28 },
 });
-
-export default Step3_Education;
