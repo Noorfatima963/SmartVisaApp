@@ -5,10 +5,10 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, TextInput, StyleSheet, ScrollView,
-    KeyboardAvoidingView, Platform, TouchableOpacity, Alert, Modal
+    KeyboardAvoidingView, Platform, TouchableOpacity, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DOBPicker from '../../components/DOBPicker';
 import PrimaryButton from '../../components/PrimaryButton';
 import ProgressDots from '../../components/ProgressDots';
 import { saveOnboardingStep, getOnboardingDraft } from '../../services/storage';
@@ -43,14 +43,6 @@ export default function Step1_PersonalInfo({ navigation }) {
     const [residenceCountry, setResidenceCountry] = useState('Pakistan');
     const [city, setCity] = useState('');
     const [address, setAddress] = useState('');
-
-    // Max selectable date = 10 years ago (min age)
-    const maxDate = new Date();
-    maxDate.setFullYear(maxDate.getFullYear() - 10);
-
-    // Min selectable date = 100 years ago
-    const minDate = new Date();
-    minDate.setFullYear(minDate.getFullYear() - 100);
 
     useEffect(() => {
         async function initData() {
@@ -91,13 +83,6 @@ export default function Step1_PersonalInfo({ navigation }) {
         }
         initData();
     }, []);
-
-    const onDateChange = (event, selectedDate) => {
-        // On Android the picker closes itself; on iOS we keep it open
-        if (Platform.OS === 'android') setShowPicker(false);
-        if (event.type === 'dismissed') return;
-        if (selectedDate) setDob(selectedDate);
-    };
 
     const handleNext = async () => {
         if (!firstName.trim() || !lastName.trim() || !nationality.trim() || !city.trim() || !address.trim()) {
@@ -156,7 +141,7 @@ export default function Step1_PersonalInfo({ navigation }) {
                         </View>
                     </View>
 
-                    {/* Date of Birth — Calendar Picker */}
+                    {/* Date of Birth — Custom Picker */}
                     <View style={s.field}>
                         <Text style={s.label}>Date of Birth</Text>
                         <TouchableOpacity style={s.dateBtn} onPress={() => setShowPicker(true)} activeOpacity={0.7}>
@@ -167,42 +152,15 @@ export default function Step1_PersonalInfo({ navigation }) {
                             <Text style={s.dateArrow}>›</Text>
                         </TouchableOpacity>
 
-                        {/* Android — inline picker shown conditionally */}
-                        {showPicker && Platform.OS === 'android' && (
-                            <DateTimePicker
-                                value={dob || maxDate}
-                                mode="date"
-                                display="calendar"
-                                maximumDate={maxDate}
-                                minimumDate={minDate}
-                                onChange={onDateChange}
-                            />
-                        )}
-
-                        {/* iOS — shown in a modal with a Done button */}
-                        {Platform.OS === 'ios' && (
-                            <Modal visible={showPicker} transparent animationType="slide">
-                                <View style={s.modalOverlay}>
-                                    <View style={s.modalSheet}>
-                                        <View style={s.modalHeader}>
-                                            <Text style={s.modalTitle}>Date of Birth</Text>
-                                            <TouchableOpacity onPress={() => setShowPicker(false)}>
-                                                <Text style={s.modalDone}>Done</Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                        <DateTimePicker
-                                            value={dob || maxDate}
-                                            mode="date"
-                                            display="spinner"
-                                            maximumDate={maxDate}
-                                            minimumDate={minDate}
-                                            onChange={onDateChange}
-                                            style={{ width: '100%' }}
-                                        />
-                                    </View>
-                                </View>
-                            </Modal>
-                        )}
+                        <DOBPicker 
+                            visible={showPicker}
+                            onClose={() => setShowPicker(false)}
+                            onSave={(selectedDate) => {
+                                setDob(selectedDate);
+                                setShowPicker(false);
+                            }}
+                            initialDate={dob}
+                        />
                     </View>
 
                     {/* Nationality */}
