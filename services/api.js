@@ -19,7 +19,12 @@ const BASE_URL = 'http://10.0.2.2:8000';   // Android emulator
 
 // ── Core Request Helper ────────────────────────────────────────────────────────
 async function request(method, endpoint, body = null, requiresAuth = true) {
-    const headers = { 'Content-Type': 'application/json' };
+    const headers = {};
+    const isFormData = body instanceof FormData;
+
+    if (!isFormData) {
+        headers['Content-Type'] = 'application/json';
+    }
 
     if (requiresAuth) {
         const token = await getToken();
@@ -27,7 +32,9 @@ async function request(method, endpoint, body = null, requiresAuth = true) {
     }
 
     const config = { method, headers };
-    if (body) config.body = JSON.stringify(body);
+    if (body) {
+        config.body = isFormData ? body : JSON.stringify(body);
+    }
 
     try {
         const response = await fetch(`${BASE_URL}${endpoint}`, config);
@@ -201,4 +208,31 @@ const assessments = {
         request('GET', `/api/assessments/cost-info/${country}/`),
 };
 
-export default { auth, profile, universities, assessments };
+// ── Documents ──────────────────────────────────────────────────────────────────
+const documents = {
+    /**
+     * List all document definitions.
+     * GET /api/documents/definitions/?country=USA&phase=VISA
+     */
+    getDefinitions: (params = {}) => {
+        const query = new URLSearchParams(params).toString();
+        return request('GET', `/api/documents/definitions/?${query}`);
+    },
+
+    /**
+     * List user's uploaded documents.
+     * GET /api/documents/
+     */
+    list: () =>
+        request('GET', '/api/documents/'),
+
+    /**
+     * Upload a new document.
+     * POST /api/documents/
+     * Body: { definition_slug, file (base64 or multipart) }
+     */
+    upload: (data) =>
+        request('POST', '/api/documents/', data),
+};
+
+export default { auth, profile, universities, assessments, documents };

@@ -18,10 +18,11 @@ export default function Profile({ navigation }) {
     try {
       const data = await api.profile.get();
 
+      // Only use draft values if they are NOT present in the API response
       const draft = await getOnboardingDraft();
       if (draft) {
-        data.target_country = draft.target_country;
-        data.target_degree_type = draft.target_degree_type;
+        if (!data.target_country) data.target_country = draft.target_country;
+        if (!data.target_degree_type) data.target_degree_type = draft.target_degree_type;
       }
 
       setProfile(data);

@@ -57,11 +57,11 @@ export default function Dashboard({ navigation }) {
       // Load full profile from API
       const data = await api.profile.get();
 
-      // Target settings are stored locally, not on the profile API
+      // Only use draft values if they are NOT present in the API response
       const draft = await getOnboardingDraft();
       if (draft) {
-        data.target_country = draft.target_country;
-        data.target_degree_type = draft.target_degree_type;
+        if (!data.target_country) data.target_country = draft.target_country;
+        if (!data.target_degree_type) data.target_degree_type = draft.target_degree_type;
       }
 
       setProfileData(data);
