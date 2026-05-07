@@ -99,7 +99,7 @@ const profile = {
      * PATCH /api/profile/update/
      */
     update: (data) =>
-        request('PATCH', '/api/profile/update/', data),
+        request('PUT', '/api/profile/', data),
 
     /**
      * Save/update education record.
@@ -116,7 +116,7 @@ const profile = {
      *   test_type: 'IELTS' | 'TOEFL' | 'PTE' | 'Duolingo'
      */
     saveLanguage: (data) =>
-        request('POST', '/api/profile/language/', data),
+        request('POST', '/api/profile/language-tests/', data),
 
     /**
      * Save/update financial profile.
@@ -124,7 +124,7 @@ const profile = {
      * Body: { approx_savings, has_sponsor, sponsor_relationship }
      */
     saveFinancial: (data) =>
-        request('POST', '/api/profile/financial/', data),
+        request('PUT', '/api/profile/financial/', data),
 };
 
 // ── Universities ───────────────────────────────────────────────────────────────
@@ -206,6 +206,27 @@ const assessments = {
      */
     countryInfo: (country) =>
         request('GET', `/api/assessments/cost-info/${country}/`),
+
+    /**
+     * Compare two programs head-to-head against the student's profile.
+     * POST /api/assessments/compare/
+     * Returns: { university_a, university_b, comparison, verdict }
+     */
+    compare: (programAId, programBId) =>
+        request('POST', '/api/assessments/compare/', {
+            program_a_id: programAId,
+            program_b_id: programBId,
+        }),
+
+    /**
+     * Search programs across all universities (used by Uni Compare screen).
+     * GET /api/assessments/programs/search/
+     * Params: { q, country, degree_type, field, university, page, page_size }
+     */
+    searchPrograms: (params = {}) => {
+        const query = new URLSearchParams(params).toString();
+        return request('GET', `/api/assessments/programs/search/?${query}`);
+    },
 };
 
 // ── Documents ──────────────────────────────────────────────────────────────────
