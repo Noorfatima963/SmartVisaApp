@@ -1,184 +1,180 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, ScrollView, StatusBar } from 'react-native';
+import {
+  View, Text, StyleSheet, Animated, Easing,
+  ScrollView, StatusBar, ActivityIndicator, TouchableOpacity,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import PrimaryButton from '../components/PrimaryButton';
+import api from '../services/api';
 
-export default function SuccessProbability({ navigation, route }) {
-  // 1. Dashboard se Real Data Receive Karna
-  const { userData } = route.params || {};
+const ELIGIBILITY_COLORS = {
+  likely:   '#4CAF50',
+  possible: '#FFD700',
+  reach:    '#FF9800',
+  unlikely: '#F44336',
+};
 
-  // Default values (Safety ke liye, agar koi field khali ho)
-  const country = userData?.selectedCountry || 'Unknown';
-  const visa = userData?.visaType || 'Student';
-  const cgpa = parseFloat(userData?.educationData?.cgpa || 0);
-  const ielts = parseFloat(userData?.englishData?.ielts || 0);
-  const budget = parseFloat(userData?.financialData?.budget || 0);
-  const sponsor = userData?.financialData?.sponsor || 'None';
+const DEGREE_NORMALIZE = { masters: 'Masters', bachelors: 'Bachelors', phd: 'PhD' };
 
-  const [score, setScore] = useState(0);
-  const [analysis, setAnalysis] = useState([]); // Feedback points
-  const [scoreColor, setScoreColor] = useState('#1A237E'); // Dynamic Color
+const FACTOR_LABELS = {
+  gpa:             'Academic (GPA)',
+  language:        'Language Test',
+  financial:       'Financial',
+  backlogs:        'Backlogs',
+  visa_history:    'Visa History',
+  acceptance_rate: 'Acceptance Rate',
+};
 
-  const animatedValue = useRef(new Animated.Value(0)).current;
+export default function SuccessProbabilityScreen({ navigation }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+  const [data, setData]       = useState(null);
+  const [score, setScore]     = useState(0);
+  const animatedValue         = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    calculateChance();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
-  // --- 🧠 AI LOGIC ENGINE ---
-  const calculateChance = () => {
-    let finalScore = 0;
-    let feedback = [];
-
-    // 1. BASE SCORE (Visa Type Factor)
-    if (visa === 'Student') finalScore += 40; 
-    else if (visa === 'Tourist') finalScore += 30; // Tourist thoda risky hota hai
-    else finalScore += 35; // Work etc.
-
-    // 2. COUNTRY DIFFICULTY FACTOR
-    const strictCountries = ['USA', 'Canada', 'Australia', 'UK', 'Germany'];
-    if (strictCountries.includes(country)) {
-        // Strict countries mein bonus kam milta hai
-        feedback.push(`ℹ️ ${country} has strict visa policies.`);
-    } else {
-        finalScore += 10; // Easier countries bonus
-        feedback.push(`✅ ${country} has relatively relaxed policies.`);
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const profile = await api.profile.get();
+      const rawDegree = profile.target_degree_type || '';
+      const result  = await api.assessments.run({
+        target_country:     profile.target_country,
+        target_degree_type: DEGREE_NORMALIZE[rawDegree.toLowerCase()] || rawDegree,
+        max_results:        10,
+      });
+      setData(result);
+      runAnimation(result.overall_score);
+    } catch (err) {
+      setError(err.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
     }
-
-    // 3. ACADEMIC SCORE (CGPA)
-    if (cgpa >= 3.5) {
-        finalScore += 20;
-        feedback.push("✅ Excellent Academic Record (High CGPA).");
-    } else if (cgpa >= 3.0) {
-        finalScore += 15;
-        feedback.push("✅ Good CGPA, meets standard requirements.");
-    } else if (cgpa >= 2.5) {
-        finalScore += 5;
-        feedback.push("⚠️ CGPA is average. Strong SOP required.");
-    } else {
-        feedback.push("❌ Low CGPA is a risk factor.");
-    }
-
-    // 4. LANGUAGE SCORE (IELTS)
-    if (ielts >= 7.0) {
-        finalScore += 20;
-        feedback.push("✅ Strong English proficiency (7.0+).");
-    } else if (ielts >= 6.5) {
-        finalScore += 15;
-        feedback.push("✅ IELTS 6.5 is a safe score.");
-    } else if (ielts >= 6.0) {
-        finalScore += 10;
-        feedback.push("⚠️ IELTS 6.0 is the bare minimum.");
-    } else {
-        feedback.push("❌ Low IELTS score. Consider retaking.");
-    }
-
-    // 5. FINANCIAL SCORE (Budget)
-    // $20,000+ is generally safe
-    if (budget >= 30000) {
-        finalScore += 20;
-        feedback.push("✅ Very Strong Financial Background.");
-    } else if (budget >= 20000) {
-        finalScore += 15;
-        feedback.push("✅ Budget is adequate for 1 year.");
-    } else if (budget >= 10000) {
-        finalScore += 5;
-        feedback.push("⚠️ Budget is tight. Show strong bank statement.");
-    } else {
-        feedback.push("❌ Low Budget. High risk of refusal.");
-    }
-
-    // 6. SPONSOR FACTOR
-    const strongSponsors = ['Father', 'Mother', 'Parents', 'Self'];
-    // Agar sponsor Father/Mother/Self hain to plus point
-    const isStrong = strongSponsors.some(s => sponsor.toLowerCase().includes(s.toLowerCase()));
-    if (isStrong) {
-        finalScore += 5;
-        feedback.push("✅ Strong Sponsor relationship (Family).");
-    }
-
-    // SCORE CAPPING (0 - 99%)
-    if (finalScore > 99) finalScore = 99;
-    if (finalScore < 10) finalScore = 10;
-
-    // COLOR LOGIC
-    if (finalScore >= 80) setScoreColor('#4CAF50'); // Green (Excellent)
-    else if (finalScore >= 60) setScoreColor('#FFD700'); // Gold (Good)
-    else setScoreColor('#F44336'); // Red (Risk)
-
-    setAnalysis(feedback);
-    runAnimation(finalScore);
   };
 
   const runAnimation = (toValue) => {
+    animatedValue.setValue(0);
     Animated.timing(animatedValue, {
-      toValue: toValue,
-      duration: 2500, // Thoda slow dramatic effect
+      toValue,
+      duration: 2000,
       useNativeDriver: false,
       easing: Easing.out(Easing.exp),
     }).start();
-
-    animatedValue.addListener((v) => {
-      setScore(Math.floor(v.value));
-    });
+    animatedValue.addListener((v) => setScore(Math.floor(v.value)));
   };
+
+  const scoreColor = score >= 75 ? '#4CAF50' : score >= 50 ? '#FFD700' : score >= 30 ? '#FF9800' : '#F44336';
+  const scoreLabel = score >= 75 ? 'High Chance' : score >= 50 ? 'Moderate Chance' : score >= 30 ? 'Low Chance' : 'High Risk';
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#1A237E" />
+          <Text style={styles.loadingText}>Analyzing your profile...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centered}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={loadData}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const top5      = (data.matches || []).slice(0, 5);
+  const breakdown = data.score_breakdown || {};
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F5F8FF" />
-      
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        <Text style={styles.title}>Visa Probability 📊</Text>
-        <Text style={styles.subtitle}>AI Analysis for {country}</Text>
 
-        {/* --- METER / CIRCLE --- */}
+        <Text style={styles.title}>Success Probability</Text>
+        <Text style={styles.subtitle}>
+          {data.total_matches_found} matches from {data.total_programs_evaluated} programs evaluated
+        </Text>
+
+        {/* Score Circle */}
         <View style={[styles.circleContainer, { borderColor: scoreColor }]}>
-          <View style={styles.circle}>
-            <Animated.Text style={[styles.percentageText, { color: scoreColor }]}>
-               {score}%
-            </Animated.Text>
-            <Text style={[styles.statusText, { color: scoreColor }]}>
-              {score >= 80 ? "High Chance 🌟" : score >= 60 ? "Moderate Chance 👍" : "High Risk ⚠️"}
-            </Text>
-          </View>
+          <Animated.Text style={[styles.percentageText, { color: scoreColor }]}>
+            {score}%
+          </Animated.Text>
+          <Text style={[styles.statusText, { color: scoreColor }]}>{scoreLabel}</Text>
         </View>
 
-        {/* --- USER SUMMARY --- */}
-        <View style={styles.summaryBox}>
-           <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>CGPA</Text>
-              <Text style={styles.summaryValue}>{cgpa}</Text>
-           </View>
-           <View style={styles.dividerVertical}/>
-           <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>IELTS</Text>
-              <Text style={styles.summaryValue}>{ielts}</Text>
-           </View>
-           <View style={styles.dividerVertical}/>
-           <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Budget</Text>
-              <Text style={styles.summaryValue}>${(budget/1000).toFixed(1)}k</Text>
-           </View>
-        </View>
-
-        {/* --- AI FEEDBACK CARD --- */}
+        {/* Score Breakdown */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Why this score?</Text>
+          <Text style={styles.cardTitle}>Score Breakdown</Text>
           <View style={styles.divider} />
-          
-          {analysis.map((item, index) => (
-            <Text key={index} style={styles.point}>{item}</Text>
+          {Object.entries(breakdown).map(([key, val]) => (
+            <View key={key} style={styles.barRow}>
+              <Text style={styles.barLabel}>{FACTOR_LABELS[key] || key}</Text>
+              <View style={styles.barBg}>
+                <View style={[
+                  styles.barFill,
+                  { width: `${val}%`, backgroundColor: val >= 70 ? '#4CAF50' : val >= 40 ? '#FFD700' : '#F44336' },
+                ]} />
+              </View>
+              <Text style={styles.barVal}>{Math.round(val)}%</Text>
+            </View>
           ))}
-          
-          {score < 60 && (
-             <Text style={styles.tipText}>💡 Tip: Try improving your IELTS score or increasing your budget to boost chances.</Text>
-          )}
         </View>
 
-        <View style={styles.btnContainer}>
-          <PrimaryButton title="Back to Dashboard" onPress={() => navigation.goBack()} />
-        </View>
+        {/* Top 5 Matches */}
+        {top5.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Top Matches</Text>
+            {top5.map((m) => (
+              <View key={m.rank} style={styles.matchCard}>
+                <View style={styles.matchHeader}>
+                  <Text style={styles.rankBadge}>#{m.rank}</Text>
+                  <View style={[styles.eligBadge, { backgroundColor: ELIGIBILITY_COLORS[m.eligibility] || '#999' }]}>
+                    <Text style={styles.eligText}>{m.eligibility}</Text>
+                  </View>
+                </View>
+                <Text style={styles.uniName}>{m.university_name}</Text>
+                <Text style={styles.progName}>{m.program_name}</Text>
+                <View style={styles.matchMeta}>
+                  <Text style={styles.metaItem}>Chance: {m.probability_score}%</Text>
+                  {m.cost_data?.totals?.first_year_cost ? (
+                    <Text style={styles.metaItem}>
+                      ${(m.cost_data.totals.first_year_cost / 1000).toFixed(0)}k / yr
+                    </Text>
+                  ) : null}
+                </View>
+                {m.match_reasons?.length > 0 && (
+                  <Text style={styles.reason}>+ {m.match_reasons[0]}</Text>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Missing Factors Tips */}
+        {data.missing_factors?.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>How to Improve</Text>
+            {data.missing_factors.map((tip, i) => (
+              <View key={i} style={styles.tipCard}>
+                <Text style={styles.tipText}>💡 {tip}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.backText}>Back to Dashboard</Text>
+        </TouchableOpacity>
 
       </ScrollView>
     </SafeAreaView>
@@ -186,45 +182,61 @@ export default function SuccessProbability({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F8FF' },
+  container:    { flex: 1, backgroundColor: '#F5F8FF' },
   scrollContent: { padding: 20, alignItems: 'center' },
-  
-  title: { fontSize: 26, fontWeight: 'bold', color: '#1A237E', marginTop: 10 },
-  subtitle: { color: '#666', marginBottom: 30, fontSize: 16 },
-  
-  circleContainer: { 
-    width: 220, height: 220, 
-    borderRadius: 110, 
-    borderWidth: 12, 
+  centered:     { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30 },
+
+  title:    { fontSize: 26, fontWeight: 'bold', color: '#1A237E', marginTop: 10 },
+  subtitle: { color: '#666', marginBottom: 24, fontSize: 13, textAlign: 'center' },
+
+  circleContainer: {
+    width: 200, height: 200,
+    borderRadius: 100,
+    borderWidth: 10,
     backgroundColor: '#fff',
     justifyContent: 'center', alignItems: 'center',
-    marginBottom: 30,
-    elevation: 10,
-    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10
+    marginBottom: 28,
+    elevation: 8,
+    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10,
   },
-  circle: { alignItems: 'center' },
-  percentageText: { fontSize: 56, fontWeight: 'bold' },
-  statusText: { fontSize: 16, fontWeight: 'bold', marginTop: 5 },
+  percentageText: { fontSize: 52, fontWeight: 'bold' },
+  statusText:     { fontSize: 14, fontWeight: 'bold', marginTop: 4 },
 
-  summaryBox: {
-    flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'center',
-    backgroundColor: '#fff', width: '100%', padding: 15, borderRadius: 15,
-    elevation: 3, marginBottom: 20
+  card:      { width: '100%', backgroundColor: '#fff', padding: 18, borderRadius: 14, elevation: 3, marginBottom: 20 },
+  cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#1A237E', marginBottom: 6 },
+  divider:   { height: 1, backgroundColor: '#F0F0F0', marginBottom: 12 },
+
+  barRow:   { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  barLabel: { width: 120, fontSize: 12, color: '#555' },
+  barBg:    { flex: 1, height: 8, backgroundColor: '#E0E0E0', borderRadius: 4, overflow: 'hidden' },
+  barFill:  { height: 8, borderRadius: 4 },
+  barVal:   { width: 36, textAlign: 'right', fontSize: 12, color: '#333', fontWeight: '600' },
+
+  section:      { width: '100%', marginBottom: 20 },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#1A237E', marginBottom: 10 },
+
+  matchCard:   { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 10, elevation: 2 },
+  matchHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  rankBadge:   { fontSize: 12, fontWeight: 'bold', color: '#666' },
+  eligBadge:   { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 },
+  eligText:    { color: '#fff', fontSize: 11, fontWeight: 'bold', textTransform: 'capitalize' },
+  uniName:     { fontSize: 14, fontWeight: 'bold', color: '#1A237E' },
+  progName:    { fontSize: 13, color: '#555', marginTop: 2 },
+  matchMeta:   { flexDirection: 'row', gap: 16, marginTop: 8 },
+  metaItem:    { fontSize: 12, color: '#666' },
+  reason:      { fontSize: 12, color: '#4CAF50', marginTop: 6 },
+
+  tipCard: {
+    backgroundColor: '#FFF8E1', borderRadius: 10, padding: 12,
+    marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#FFD700',
   },
-  summaryItem: { alignItems: 'center' },
-  summaryLabel: { fontSize: 12, color: '#888' },
-  summaryValue: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  dividerVertical: { width: 1, height: '80%', backgroundColor: '#E0E0E0' },
+  tipText: { fontSize: 13, color: '#795548' },
 
-  card: { width: '100%', backgroundColor: '#fff', padding: 20, borderRadius: 15, elevation: 3 },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 5 },
-  divider: { height: 1, backgroundColor: '#F0F0F0', marginBottom: 10 },
-  point: { fontSize: 15, color: '#555', marginBottom: 8, lineHeight: 22 },
-  
-  tipText: { 
-    marginTop: 15, padding: 10, backgroundColor: '#FFF3E0', 
-    color: '#E65100', borderRadius: 8, fontSize: 13, fontStyle: 'italic' 
-  },
+  loadingText: { marginTop: 16, color: '#666', fontSize: 15 },
+  errorText:   { fontSize: 15, color: '#F44336', textAlign: 'center', marginBottom: 20 },
+  retryBtn:    { backgroundColor: '#1A237E', paddingHorizontal: 32, paddingVertical: 12, borderRadius: 10 },
+  retryText:   { color: '#fff', fontWeight: 'bold', fontSize: 15 },
 
-  btnContainer: { width: '100%', marginTop: 30, marginBottom: 20 }
+  backBtn:  { marginTop: 10, marginBottom: 20, backgroundColor: '#1A237E', paddingVertical: 14, paddingHorizontal: 40, borderRadius: 12 },
+  backText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
 });

@@ -19,15 +19,15 @@ const COUNTRIES = [
 ];
 
 const DEGREES = [
-    { label: '🎓 Masters / Post-Graduate', value: 'masters' },
-    { label: '📚 Bachelors / Under-Graduate', value: 'bachelors' },
-    { label: '🔬 PhD / Doctorate', value: 'phd' },
+    { label: '🎓 Masters / Post-Graduate', value: 'Masters' },
+    { label: '📚 Bachelors / Under-Graduate', value: 'Bachelors' },
+    { label: '🔬 PhD / Doctorate', value: 'PhD' },
     { label: '📜 Diploma / Certificate', value: 'high_school' },
 ];
 
 export default function Step2_Country({ navigation }) {
     const [country, setCountry] = useState('USA');
-    const [degreeType, setDegreeType] = useState('masters');
+    const [degreeType, setDegreeType] = useState('Masters');
 
     useEffect(() => {
         getOnboardingDraft().then(d => {

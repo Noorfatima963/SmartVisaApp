@@ -1,127 +1,66 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TextInput, 
-  TouchableOpacity, 
-  ScrollView, 
-  Alert, 
-  KeyboardAvoidingView, 
-  Platform,
-  StatusBar
+import React, { useState } from 'react';
+import {
+  View, Text, StyleSheet, TouchableOpacity,
+  ScrollView, KeyboardAvoidingView, Platform,
+  StatusBar, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
+import api from '../services/api';
 
-// Custom Button
-import PrimaryButton from '../components/PrimaryButton';
+const COUNTRY_CODE = { USA: 'USA', UK: 'UK', Canada: 'CA', Australia: 'AU', Germany: 'DE' };
 
-export default function Eligibility({ navigation, route }) {
-  
-  // 1. Dashboard se Data Pre-fill karna (Smart Feature)
-  const { userData } = route.params || {};
-  
-  const [country, setCountry] = useState(userData?.selectedCountry || 'USA');
-  const [degreeLevel, setDegreeLevel] = useState('Masters'); // New Field
-  const [cgpa, setCgpa] = useState(userData?.educationData?.cgpa?.toString() || '');
-  const [ielts, setIelts] = useState(userData?.englishData?.ielts?.toString() || '');
-  
-  const [result, setResult] = useState(null); 
-  // Result Object Structure: { status: 'eligible' | 'risky' | 'not_eligible', title: '', msg: '', details: [] }
+const ELIGIBILITY_COLORS = {
+  likely:   '#4CAF50',
+  possible: '#FFD700',
+  reach:    '#FF9800',
+  unlikely: '#F44336',
+};
 
-  // --- SMART LOGIC ENGINE ---
-  const checkStatus = () => {
-    // 1. Validation
-    if(!cgpa || !ielts) {
-        Alert.alert("Missing Input", "Please enter your CGPA and IELTS score.");
-        return;
+export default function EligibilityScreen({ navigation }) {
+  const [country, setCountry]         = useState('USA');
+  const [degreeLevel, setDegreeLevel] = useState('Masters');
+  const [loading, setLoading]         = useState(false);
+  const [result, setResult]           = useState(null);
+  const [error, setError]             = useState(null);
+
+  const checkStatus = async () => {
+    setLoading(true);
+    setResult(null);
+    setError(null);
+    try {
+      const data = await api.assessments.run({
+        target_country:     COUNTRY_CODE[country] || country,
+        target_degree_type: degreeLevel,
+        max_results:        5,
+      });
+
+      const score = data.overall_score;
+      let status, title, color;
+      if (score >= 75) {
+        status = 'eligible';   title = '🎉 Eligible';     color = '#2E7D32';
+      } else if (score >= 50) {
+        status = 'possible';   title = '👍 Possible';     color = '#F57F17';
+      } else if (score >= 30) {
+        status = 'reach';      title = '⚠️ Reach';        color = '#E65100';
+      } else {
+        status = 'not_eligible'; title = '❌ Not Eligible'; color = '#C62828';
+      }
+
+      setResult({ status, title, color, score, data });
+    } catch (err) {
+      setError(err.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
     }
-
-    const gpa = parseFloat(cgpa);
-    const score = parseFloat(ielts);
-
-    if (gpa < 0 || gpa > 4.0) {
-        Alert.alert("Invalid CGPA", "CGPA must be between 0.0 and 4.0");
-        return;
-    }
-    if (score < 0 || score > 9.0) {
-        Alert.alert("Invalid IELTS", "IELTS score must be between 0.0 and 9.0");
-        return;
-    }
-
-    let isEligible = false;
-    let isRisky = false;
-    let feedback = [];
-    let requirementMsg = "";
-
-    // 2. Country Specific Rules (Real Requirements)
-    const rules = {
-        USA: { 
-            Bachelors: { minGpa: 2.5, minIelts: 6.0 }, 
-            Masters: { minGpa: 3.0, minIelts: 6.5 } 
-        },
-        UK: { 
-            Bachelors: { minGpa: 2.2, minIelts: 6.0 }, 
-            Masters: { minGpa: 2.5, minIelts: 6.5 } 
-        },
-        Canada: { 
-            Bachelors: { minGpa: 2.8, minIelts: 6.0 }, 
-            Masters: { minGpa: 3.0, minIelts: 6.5 } // Strict for SDS
-        },
-        Australia: { 
-            Bachelors: { minGpa: 2.5, minIelts: 6.0 }, 
-            Masters: { minGpa: 2.8, minIelts: 6.5 } 
-        },
-        Germany: { 
-            Bachelors: { minGpa: 3.0, minIelts: 6.0 }, 
-            Masters: { minGpa: 2.8, minIelts: 6.5 } 
-        },
-    };
-
-    const targetRule = rules[country] ? rules[country][degreeLevel] : { minGpa: 2.5, minIelts: 6.0 };
-    
-    // 3. Evaluation
-    const gpaPass = gpa >= targetRule.minGpa;
-    const ieltsPass = score >= targetRule.minIelts;
-
-    // Build Feedback
-    if (gpaPass) {
-        feedback.push(`✅ Academic: Your CGPA (${gpa}) meets the requirement (${targetRule.minGpa}+).`);
-    } else {
-        feedback.push(`❌ Academic: Low CGPA. Requirement is ${targetRule.minGpa}.`);
-    }
-
-    if (ieltsPass) {
-        feedback.push(`✅ Language: IELTS Score (${score}) is sufficient.`);
-    } else {
-        feedback.push(`❌ Language: Low IELTS. You need at least ${targetRule.minIelts}.`);
-    }
-
-    // Final Verdict
-    if (gpaPass && ieltsPass) {
-        isEligible = true;
-        requirementMsg = "You have a high chance of acceptance!";
-    } else if (gpaPass || ieltsPass) {
-        isRisky = true;
-        requirementMsg = "You meet some requirements, but not all. Consider Foundation courses.";
-    } else {
-        requirementMsg = "It will be difficult to get admission directly.";
-    }
-
-    setResult({
-        status: isEligible ? 'eligible' : isRisky ? 'risky' : 'not_eligible',
-        title: isEligible ? "🎉 Eligible" : isRisky ? "⚠️ Conditional" : "❌ Not Eligible",
-        msg: requirementMsg,
-        details: feedback
-    });
   };
+
+  const top3 = result?.data?.matches?.slice(0, 3) || [];
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#1A237E" barStyle="light-content" />
-      
-      {/* Header */}
+
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
@@ -129,100 +68,100 @@ export default function Eligibility({ navigation, route }) {
         <Text style={styles.headerTitle}>Eligibility AI 🤖</Text>
       </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{flex:1}}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-            <Text style={styles.subText}>
-                Check admission chances for <Text style={{fontWeight:'bold', color:'#1A237E'}}>{degreeLevel}</Text> in <Text style={{fontWeight:'bold', color:'#1A237E'}}>{country}</Text>.
-            </Text>
+          <Text style={styles.subText}>
+            Check admission chances for{' '}
+            <Text style={{ fontWeight: 'bold', color: '#1A237E' }}>{degreeLevel}</Text>
+            {' '}in{' '}
+            <Text style={{ fontWeight: 'bold', color: '#1A237E' }}>{country}</Text>.
+          </Text>
 
-            {/* --- INPUT FORM --- */}
-            <View style={styles.card}>
-                
-                {/* Country Picker */}
-                <Text style={styles.label}>Destination Country</Text>
-                <View style={styles.pickerBox}>
-                    <Picker
-                        selectedValue={country}
-                        onValueChange={(val) => setCountry(val)}
-                        dropdownIconColor="#1A237E"
-                    >
-                        <Picker.Item label="🇺🇸 USA" value="USA" />
-                        <Picker.Item label="🇬🇧 UK" value="UK" />
-                        <Picker.Item label="🇨🇦 Canada" value="Canada" />
-                        <Picker.Item label="🇦🇺 Australia" value="Australia" />
-                        <Picker.Item label="🇩🇪 Germany" value="Germany" />
-                    </Picker>
-                </View>
-
-                {/* Degree Level Picker */}
-                <Text style={styles.label}>Applying For</Text>
-                <View style={styles.pickerBox}>
-                    <Picker
-                        selectedValue={degreeLevel}
-                        onValueChange={(val) => setDegreeLevel(val)}
-                        dropdownIconColor="#1A237E"
-                    >
-                        <Picker.Item label="🎓 Masters / Post-Grad" value="Masters" />
-                        <Picker.Item label="📚 Bachelors / Under-Grad" value="Bachelors" />
-                    </Picker>
-                </View>
-
-                <View style={styles.rowInputs}>
-                    <View style={{flex:1, marginRight:10}}>
-                        <Text style={styles.label}>CGPA (4.0)</Text>
-                        <TextInput 
-                            style={styles.input} 
-                            keyboardType="decimal-pad" 
-                            placeholder="3.2" 
-                            value={cgpa}
-                            onChangeText={setCgpa}
-                            maxLength={4}
-                        />
-                    </View>
-                    <View style={{flex:1}}>
-                        <Text style={styles.label}>IELTS Score</Text>
-                        <TextInput 
-                            style={styles.input} 
-                            keyboardType="decimal-pad" 
-                            placeholder="6.5" 
-                            value={ielts}
-                            onChangeText={setIelts}
-                            maxLength={3}
-                        />
-                    </View>
-                </View>
-
-                <View style={{marginTop: 25}}>
-                    <PrimaryButton title="Check Eligibility" onPress={checkStatus} />
-                </View>
+          {/* Form */}
+          <View style={styles.card}>
+            <Text style={styles.label}>Destination Country</Text>
+            <View style={styles.pickerBox}>
+              <Picker selectedValue={country} onValueChange={setCountry} dropdownIconColor="#1A237E">
+                <Picker.Item label="🇺🇸 USA"       value="USA"       />
+                <Picker.Item label="🇬🇧 UK"        value="UK"        />
+                <Picker.Item label="🇨🇦 Canada"    value="Canada"    />
+                <Picker.Item label="🇦🇺 Australia" value="Australia" />
+                <Picker.Item label="🇩🇪 Germany"   value="Germany"   />
+              </Picker>
             </View>
 
-            {/* --- RESULT SECTION --- */}
-            {result && (
-                <View style={[
-                    styles.resultCard, 
-                    result.status === 'eligible' ? styles.successCard : 
-                    result.status === 'risky' ? styles.riskyCard : styles.failCard
-                ]}>
-                    <Text style={[
-                        styles.resultTitle,
-                        result.status === 'eligible' ? {color:'#2E7D32'} : 
-                        result.status === 'risky' ? {color:'#E65100'} : {color:'#C62828'}
-                    ]}>
-                        {result.title}
-                    </Text>
-                    
-                    <Text style={styles.resultMsg}>{result.msg}</Text>
-                    
-                    <View style={styles.divider} />
-                    
-                    {/* Detailed Points */}
-                    {result.details.map((detail, index) => (
-                        <Text key={index} style={styles.detailText}>{detail}</Text>
-                    ))}
+            <Text style={styles.label}>Applying For</Text>
+            <View style={styles.pickerBox}>
+              <Picker selectedValue={degreeLevel} onValueChange={setDegreeLevel} dropdownIconColor="#1A237E">
+                <Picker.Item label="🎓 Masters / Post-Grad"    value="Masters"   />
+                <Picker.Item label="📚 Bachelors / Under-Grad" value="Bachelors" />
+              </Picker>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.checkBtn, loading && styles.checkBtnDisabled]}
+              onPress={checkStatus}
+              disabled={loading}
+            >
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.checkBtnText}>Check Eligibility</Text>}
+            </TouchableOpacity>
+          </View>
+
+          {/* Error */}
+          {error && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
+          {/* Result */}
+          {result && (
+            <>
+              {/* Score card */}
+              <View style={[styles.resultCard, { borderLeftColor: result.color }]}>
+                <Text style={[styles.resultTitle, { color: result.color }]}>{result.title}</Text>
+                <Text style={styles.scoreText}>{result.score.toFixed(1)}% overall score</Text>
+                <Text style={styles.matchCount}>
+                  Found {result.data.total_matches_found} matching programs
+                </Text>
+              </View>
+
+              {/* Top 3 matches */}
+              {top3.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Top Matches</Text>
+                  {top3.map((m, i) => (
+                    <View key={i} style={styles.matchCard}>
+                      <View style={styles.matchRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.matchUni} numberOfLines={1}>{m.university_name}</Text>
+                          <Text style={styles.matchProg} numberOfLines={1}>{m.program_name}</Text>
+                        </View>
+                        <View style={[styles.eligBadge, { backgroundColor: ELIGIBILITY_COLORS[m.eligibility] || '#999' }]}>
+                          <Text style={styles.eligText}>{m.eligibility}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
                 </View>
-            )}
+              )}
+
+              {/* Improvement tips */}
+              {result.data.missing_factors?.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>How to Improve</Text>
+                  {result.data.missing_factors.map((tip, i) => (
+                    <View key={i} style={styles.tipCard}>
+                      <Text style={styles.tipText}>💡 {tip}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
 
         </ScrollView>
       </KeyboardAvoidingView>
@@ -232,48 +171,56 @@ export default function Eligibility({ navigation, route }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F8FF' },
-  
-  header: { 
-    flexDirection: 'row', alignItems: 'center', padding: 20, 
-    backgroundColor: '#1A237E', elevation: 5 
+
+  header: {
+    flexDirection: 'row', alignItems: 'center',
+    padding: 20, backgroundColor: '#1A237E', elevation: 5,
   },
-  backBtn: { marginRight: 15 },
-  backText: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
+  backBtn:     { marginRight: 15 },
+  backText:    { color: '#fff', fontSize: 24, fontWeight: 'bold' },
   headerTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
 
-  content: { padding: 20 },
+  content: { padding: 20, paddingBottom: 40 },
   subText: { textAlign: 'center', color: '#666', marginBottom: 20, fontSize: 15 },
 
-  // Form Card
-  card: { backgroundColor: '#fff', padding: 20, borderRadius: 15, elevation: 3, marginBottom: 20 },
-  
-  label: { fontSize: 13, fontWeight: 'bold', color: '#1A237E', marginTop: 12, marginBottom: 5 },
-  
-  pickerBox: { 
-    borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 10, 
-    backgroundColor: '#FAFAFA', height: 50, justifyContent: 'center' 
-  },
-  
-  rowInputs: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 },
-  
-  input: { 
-    borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 10, 
-    padding: 12, backgroundColor: '#FAFAFA', fontSize: 16, textAlign: 'center', color: '#333'
+  card:      { backgroundColor: '#fff', padding: 20, borderRadius: 15, elevation: 3, marginBottom: 20 },
+  label:     { fontSize: 13, fontWeight: 'bold', color: '#1A237E', marginTop: 12, marginBottom: 5 },
+  pickerBox: {
+    borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 10,
+    backgroundColor: '#FAFAFA', height: 50, justifyContent: 'center',
   },
 
-  // Result Cards
-  resultCard: { padding: 20, borderRadius: 15, alignItems: 'center', elevation: 4 },
-  successCard: { backgroundColor: '#E8F5E9', borderLeftWidth: 5, borderLeftColor: '#4CAF50' },
-  riskyCard: { backgroundColor: '#FFF3E0', borderLeftWidth: 5, borderLeftColor: '#FF9800' },
-  failCard: { backgroundColor: '#FFEBEE', borderLeftWidth: 5, borderLeftColor: '#F44336' },
+  checkBtn: {
+    marginTop: 24, backgroundColor: '#1A237E',
+    paddingVertical: 14, borderRadius: 12, alignItems: 'center',
+  },
+  checkBtnDisabled: { opacity: 0.7 },
+  checkBtnText:     { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 
-  resultTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 5 },
-  resultMsg: { textAlign: 'center', color: '#555', fontSize: 15, marginBottom: 15 },
-  
-  divider: { width: '100%', height: 1, backgroundColor: 'rgba(0,0,0,0.1)', marginBottom: 15 },
-  
-  detailText: { 
-    fontSize: 14, color: '#444', marginBottom: 8, width: '100%', 
-    backgroundColor: 'rgba(255,255,255,0.5)', padding: 8, borderRadius: 8 
-  }
+  errorBox:  { backgroundColor: '#FFEBEE', borderRadius: 12, padding: 14, marginBottom: 16 },
+  errorText: { color: '#C62828', fontSize: 14, textAlign: 'center' },
+
+  resultCard: {
+    backgroundColor: '#fff', borderRadius: 14, padding: 18,
+    borderLeftWidth: 5, elevation: 3, marginBottom: 16, alignItems: 'center',
+  },
+  resultTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 6 },
+  scoreText:   { fontSize: 16, color: '#333', fontWeight: '600', marginBottom: 4 },
+  matchCount:  { fontSize: 13, color: '#666' },
+
+  section:      { marginBottom: 16 },
+  sectionTitle: { fontSize: 15, fontWeight: 'bold', color: '#1A237E', marginBottom: 8 },
+
+  matchCard: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 8, elevation: 2 },
+  matchRow:  { flexDirection: 'row', alignItems: 'center' },
+  matchUni:  { fontSize: 13, fontWeight: 'bold', color: '#1A237E' },
+  matchProg: { fontSize: 12, color: '#555', marginTop: 2 },
+  eligBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginLeft: 8 },
+  eligText:  { color: '#fff', fontSize: 11, fontWeight: 'bold', textTransform: 'capitalize' },
+
+  tipCard: {
+    backgroundColor: '#FFF8E1', borderRadius: 10, padding: 12,
+    marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#FFD700',
+  },
+  tipText: { fontSize: 13, color: '#795548' },
 });

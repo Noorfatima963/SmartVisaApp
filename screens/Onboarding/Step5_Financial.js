@@ -136,7 +136,7 @@ export default function Step5_Financial({ navigation }) {
 
       // 4. Save financial profile
       try {
-        await apiCall('PATCH', '/api/profile/financial/', {
+        await apiCall('PUT', '/api/profile/financial/', {
           approx_savings: savingsVal,
           has_sponsor: hasSponsor,
           sponsor_name: hasSponsor ? sponsorName.trim() : null,
