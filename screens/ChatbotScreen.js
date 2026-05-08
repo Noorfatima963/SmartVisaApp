@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   FlatList, KeyboardAvoidingView, Platform, StatusBar,
@@ -14,12 +14,11 @@ const INITIAL_MESSAGE = {
 };
 
 export default function ChatbotScreen({ navigation }) {
-  const [messages, setMessages]             = useState([INITIAL_MESSAGE]);
-  const [input, setInput]                   = useState('');
-  const [loading, setLoading]               = useState(false);
-  const [suggestions, setSuggestions]       = useState([]);
+  const [messages, setMessages]               = useState([INITIAL_MESSAGE]);
+  const [input, setInput]                     = useState('');
+  const [loading, setLoading]                 = useState(false);
+  const [suggestions, setSuggestions]         = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(true);
-  const flatListRef = useRef(null);
 
   useEffect(() => { loadSuggestions(); }, []);
 
@@ -121,14 +120,15 @@ export default function ChatbotScreen({ navigation }) {
         keyboardVerticalOffset={0}
       >
         <FlatList
-          ref={flatListRef}
-          data={messages}
+          data={[...messages].reverse()}
+          inverted
           keyExtractor={item => item.id}
           renderItem={renderMessage}
           contentContainerStyle={styles.messagesList}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           showsVerticalScrollIndicator={false}
-          ListFooterComponent={
+          removeClippedSubviews={false}
+          style={styles.flatList}
+          ListHeaderComponent={
             loading ? (
               <View style={styles.typingRow}>
                 <View style={styles.avatar}>
@@ -195,7 +195,8 @@ const styles = StyleSheet.create({
   headerSub:  { color: '#9FA8DA', fontSize: 11, marginTop: 1 },
   onlineDot:  { width: 8, height: 8, borderRadius: 4, backgroundColor: '#4CAF50', marginLeft: 'auto' },
 
-  messagesList: { padding: 16, paddingBottom: 8 },
+  flatList:     { flex: 1 },
+  messagesList: { padding: 16, paddingTop: 8 },
 
   msgRow:     { flexDirection: 'row', marginBottom: 14, alignItems: 'flex-end' },
   msgRowUser: { flexDirection: 'row-reverse' },
