@@ -14,8 +14,9 @@ import { getToken } from './storage';
 // ── Base Config ────────────────────────────────────────────────────────────────
 // For physical device on same WiFi, replace with your machine's local IP
 // e.g. http://192.168.1.5:8000
-const BASE_URL = 'http://10.0.2.2:8000';   // Android emulator
+const BASE_URL = 'https://urinous-gloopily-beaulah.ngrok-free.dev';   // Android emulator
 // const BASE_URL = 'http://localhost:8000'; // iOS simulator
+// const BASE_URL = 'https://urinous-gloopily-beaulah.ngrok-free.dev';   // ngrok url
 
 // ── Core Request Helper ────────────────────────────────────────────────────────
 async function request(method, endpoint, body = null, requiresAuth = true) {
@@ -41,12 +42,14 @@ async function request(method, endpoint, body = null, requiresAuth = true) {
         const data = await response.json();
 
         if (!response.ok) {
+            const rawMessage = data?.detail ?? data?.error ?? data?.non_field_errors;
+            const message = Array.isArray(rawMessage)
+                ? rawMessage.join(' ')
+                : typeof rawMessage === 'string'
+                    ? rawMessage
+                    : JSON.stringify(data) || 'Something went wrong';
             // Return a structured error so screens can handle it cleanly
-            throw {
-                status: response.status,
-                message: data?.detail || data?.error || JSON.stringify(data) || 'Something went wrong',
-                data,
-            };
+            throw { status: response.status, message, data };
         }
 
         return data;
