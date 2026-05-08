@@ -256,4 +256,22 @@ const documents = {
         request('POST', '/api/documents/', data),
 };
 
-export default { auth, profile, universities, assessments, documents };
+// ── Chatbot ────────────────────────────────────────────────────────────────
+const chatbot = {
+    /**
+     * Send a message to the AI chatbot.
+     * POST /api/chatbot/message/
+     * Body: { message, history: [{ role, content }] }
+     */
+    message: (message, history = []) =>
+        request('POST', '/api/chatbot/message/', { message, history }),
+
+    /**
+     * Get smart suggested questions based on the student's profile.
+     * GET /api/chatbot/suggestions/
+     */
+    suggestions: () =>
+        request('GET', '/api/chatbot/suggestions/'),
+};
+
+export default { auth, profile, universities, assessments, documents, chatbot };
