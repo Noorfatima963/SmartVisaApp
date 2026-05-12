@@ -6,6 +6,7 @@ import SplashScreen from '../screens/SplashScreen';
 import StartScreen from '../screens/StartScreen';
 import SignIn from '../screens/Auth/SignIn';
 import SignUp from '../screens/Auth/SignUp';
+import OTPVerification from '../screens/Auth/OTPVerification';
 
 // Onboarding — 5 focused steps
 import Step1_PersonalInfo from '../screens/Onboarding/Step1_PersonalInfo';
@@ -35,6 +36,7 @@ export default function AppNavigator() {
         <Stack.Screen name="Start" component={StartScreen} />
         <Stack.Screen name="SignIn" component={SignIn} />
         <Stack.Screen name="SignUp" component={SignUp} />
+        <Stack.Screen name="OTPVerification" component={OTPVerification} />
 
         {/* Onboarding */}
         <Stack.Screen name="Step1_PersonalInfo" component={Step1_PersonalInfo} />

@@ -14,7 +14,9 @@ import { getToken } from './storage';
 // ── Base Config ────────────────────────────────────────────────────────────────
 // For physical device on same WiFi, replace with your machine's local IP
 // e.g. http://192.168.1.5:8000
-const BASE_URL = 'https://urinous-gloopily-beaulah.ngrok-free.dev';   // Android emulator
+// const BASE_URL = 'https://urinous-gloopily-beaulah.ngrok-free.dev';   // Android emulator
+// const BASE_URL = 'http://10.0.2.2:8000';   // Android emulator
+const BASE_URL = 'https://smartvisa.pythonanywhere.com';   // live hosted site url
 // const BASE_URL = 'http://localhost:8000'; // iOS simulator
 // const BASE_URL = 'https://urinous-gloopily-beaulah.ngrok-free.dev';   // ngrok url
 
@@ -86,6 +88,30 @@ const auth = {
      */
     refreshToken: (refreshToken) =>
         request('POST', '/api/users/token/refresh/', { refresh: refreshToken }, false),
+
+    /**
+     * Register via mobile OTP flow.
+     * POST /api/users/mobile/register/
+     * Returns: { message }
+     */
+    mobileRegister: (first_name, last_name, email, phone_number, password) =>
+        request('POST', '/api/users/mobile/register/', { first_name, last_name, email, phone_number, password }, false),
+
+    /**
+     * Verify 4-digit OTP sent to email.
+     * POST /api/users/mobile/verify-otp/
+     * Returns: { message }
+     */
+    verifyOTP: (email, otp) =>
+        request('POST', '/api/users/mobile/verify-otp/', { email, otp }, false),
+
+    /**
+     * Resend OTP (enforces 30s cooldown server-side).
+     * POST /api/users/mobile/resend-otp/
+     * Returns: { message }
+     */
+    resendOTP: (email) =>
+        request('POST', '/api/users/mobile/resend-otp/', { email }, false),
 };
 
 // ── Student Profile ────────────────────────────────────────────────────────────
