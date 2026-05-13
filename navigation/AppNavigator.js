@@ -14,9 +14,11 @@ import Step2_Country from '../screens/Onboarding/Step2_Country';
 import Step3_Education from '../screens/Onboarding/Step3_Education';
 import Step4_Language from '../screens/Onboarding/Step4_Language';
 import Step5_Financial from '../screens/Onboarding/Step5_Financial';
+import Step6_Background from '../screens/Onboarding/Step6_Background';
 
 import Dashboard from '../screens/Dashboard';
 import Profile from '../screens/Profile';
+import ProfileEditScreen from '../screens/ProfileEditScreen';
 
 import EligibilityScreen from '../screens/EligibilityScreen';
 import DocumentCheckerScreen from '../screens/DocumentCheckerScreen';
@@ -44,9 +46,11 @@ export default function AppNavigator() {
         <Stack.Screen name="Step3_Education" component={Step3_Education} />
         <Stack.Screen name="Step4_Language" component={Step4_Language} />
         <Stack.Screen name="Step5_Financial" component={Step5_Financial} />
+        <Stack.Screen name="Step6_Background" component={Step6_Background} />
 
         <Stack.Screen name="Dashboard" component={Dashboard} />
         <Stack.Screen name="Profile" component={Profile} />
+        <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
         <Stack.Screen name="SuccessProbability" component={SuccessProbabilityScreen} />
         <Stack.Screen name="DocumentChecker" component={DocumentCheckerScreen} />
         <Stack.Screen name="Eligibility" component={EligibilityScreen} />

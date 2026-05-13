@@ -93,7 +93,7 @@ export async function clearOnboardingDraft() {
         const cleanDraft = {
             target_country: existing.target_country,
             target_degree_type: existing.target_degree_type,
-            step_reached: 5 // Optional: so we know they finished but we still have these fields
+            step_reached: 6,
         };
         await AsyncStorage.setItem(KEYS.ONBOARDING_DRAFT, JSON.stringify(cleanDraft));
     } else {

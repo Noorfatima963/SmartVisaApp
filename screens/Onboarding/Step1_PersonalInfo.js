@@ -104,7 +104,7 @@ export default function Step1_PersonalInfo({ navigation }) {
 
     return (
         <SafeAreaView style={s.container}>
-            <View style={s.top}><ProgressDots step={1} total={5} /></View>
+            <View style={s.top}><ProgressDots step={1} total={6} /></View>
 
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                 <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>

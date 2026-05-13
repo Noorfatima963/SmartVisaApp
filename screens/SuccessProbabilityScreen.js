@@ -38,10 +38,17 @@ export default function SuccessProbabilityScreen({ navigation }) {
     setError(null);
     try {
       const profile = await api.profile.get();
-      const rawDegree = profile.target_degree_type || '';
-      const result  = await api.assessments.run({
-        target_country:     profile.target_country,
-        target_degree_type: DEGREE_NORMALIZE[rawDegree.toLowerCase()] || rawDegree,
+      const targetCountry = profile.target_country;
+      const rawDegree     = profile.target_degree_type || '';
+
+      if (!targetCountry) {
+        setError('Target country is not set on your profile. Please update it from Edit Profile → Bio tab.');
+        return;
+      }
+
+      const result = await api.assessments.run({
+        target_country:     targetCountry,
+        target_degree_type: DEGREE_NORMALIZE[rawDegree.toLowerCase()] || rawDegree || 'Masters',
         max_results:        10,
       });
       setData(result);

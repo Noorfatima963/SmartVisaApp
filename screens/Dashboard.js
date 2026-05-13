@@ -37,7 +37,7 @@ export default function Dashboard({ navigation }) {
 
   const STEP_SCREENS = {
     1: 'Step1_PersonalInfo', 2: 'Step2_Country', 3: 'Step3_Education',
-    4: 'Step4_Language', 5: 'Step5_Financial',
+    4: 'Step4_Language', 5: 'Step5_Financial', 6: 'Step6_Background',
   };
 
   useEffect(() => {
@@ -100,7 +100,7 @@ export default function Dashboard({ navigation }) {
           <View>
             <Text style={styles.welcomeText}>{getGreeting()},</Text>
             <Text style={styles.userName}>
-              {profileData?.first_name || user?.name || 'Scholar'} 🎓
+              {profileData?.first_name || profileData?.user?.first_name || 'Scholar'} 🎓
             </Text>
           </View>
           <TouchableOpacity

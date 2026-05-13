@@ -89,7 +89,7 @@ export default function Profile({ navigation }) {
 
             <TouchableOpacity
               style={styles.editBtn}
-              onPress={() => navigation.navigate('Step1_PersonalInfo')}
+              onPress={() => navigation.navigate('ProfileEdit')}
             >
               <Text style={styles.editBtnText}>Edit Profile ✏️</Text>
             </TouchableOpacity>

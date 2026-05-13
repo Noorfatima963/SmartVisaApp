@@ -16,9 +16,9 @@ import { getToken } from './storage';
 // e.g. http://192.168.1.5:8000
 // const BASE_URL = 'https://urinous-gloopily-beaulah.ngrok-free.dev';   // Android emulator
 // const BASE_URL = 'http://10.0.2.2:8000';   // Android emulator
-const BASE_URL = 'https://smartvisa.pythonanywhere.com';   // live hosted site url
+// const BASE_URL = 'https://smartvisa.pythonanywhere.com';   // live hosted site url
 // const BASE_URL = 'http://localhost:8000'; // iOS simulator
-// const BASE_URL = 'https://urinous-gloopily-beaulah.ngrok-free.dev';   // ngrok url
+const BASE_URL = 'https://urinous-gloopily-beaulah.ngrok-free.dev';   // ngrok url
 
 // ── Core Request Helper ────────────────────────────────────────────────────────
 async function request(method, endpoint, body = null, requiresAuth = true) {
@@ -41,7 +41,16 @@ async function request(method, endpoint, body = null, requiresAuth = true) {
 
     try {
         const response = await fetch(`${BASE_URL}${endpoint}`, config);
-        const data = await response.json();
+
+        let data = {};
+        try {
+            data = await response.json();
+        } catch (_) {
+            // Server returned non-JSON (e.g. 500 HTML page)
+            if (!response.ok) {
+                throw { status: response.status, message: `Server error (${response.status}). Please try again.` };
+            }
+        }
 
         if (!response.ok) {
             const rawMessage = data?.detail ?? data?.error ?? data?.non_field_errors;
@@ -50,17 +59,14 @@ async function request(method, endpoint, body = null, requiresAuth = true) {
                 : typeof rawMessage === 'string'
                     ? rawMessage
                     : JSON.stringify(data) || 'Something went wrong';
-            // Return a structured error so screens can handle it cleanly
             throw { status: response.status, message, data };
         }
 
         return data;
     } catch (error) {
-        // Network error (no connection, server down etc.)
-        if (!error.status) {
-            throw { status: 0, message: 'Cannot connect to server. Check your connection.' };
-        }
-        throw error;
+        if (error.status !== undefined) throw error;
+        // True network error (no connection, DNS failure, etc.)
+        throw { status: 0, message: 'Cannot connect to server. Check your connection.' };
     }
 }
 
@@ -149,11 +155,38 @@ const profile = {
 
     /**
      * Save/update financial profile.
-     * POST /api/profile/financial/
-     * Body: { approx_savings, has_sponsor, sponsor_relationship }
+     * PUT /api/profile/financial/
      */
     saveFinancial: (data) =>
         request('PUT', '/api/profile/financial/', data),
+
+    // ── Education list / delete ────────────────────────────────────────────────
+    getEducation: () =>
+        request('GET', '/api/profile/education/'),
+
+    deleteEducation: (id) =>
+        request('DELETE', `/api/profile/education/${id}/`),
+
+    // ── Language tests list / delete ──────────────────────────────────────────
+    getLanguageTests: () =>
+        request('GET', '/api/profile/language-tests/'),
+
+    deleteLanguageTest: (id) =>
+        request('DELETE', `/api/profile/language-tests/${id}/`),
+
+    // ── Travel history ────────────────────────────────────────────────────────
+    getTravelHistory: () =>
+        request('GET', '/api/profile/travel-history/'),
+
+    addTravelHistory: (data) =>
+        request('POST', '/api/profile/travel-history/', data),
+
+    deleteTravelHistory: (id) =>
+        request('DELETE', `/api/profile/travel-history/${id}/`),
+
+    // ── Financial profile ─────────────────────────────────────────────────────
+    getFinancialProfile: () =>
+        request('GET', '/api/profile/financial/'),
 };
 
 // ── Universities ───────────────────────────────────────────────────────────────

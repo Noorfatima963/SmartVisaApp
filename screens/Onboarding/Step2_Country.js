@@ -43,9 +43,15 @@ export default function Step2_Country({ navigation }) {
 
     return (
         <SafeAreaView style={s.container}>
-            <View style={s.top}><ProgressDots step={2} total={5} /></View>
+            <View style={s.top}>
+              <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+                <Text style={s.backText}>← Back</Text>
+              </TouchableOpacity>
+              <ProgressDots step={2} total={6} />
+              <View style={s.backBtn} />
+            </View>
             <ScrollView contentContainerStyle={s.scroll}>
-                <Text style={s.badge}>Step 2 of 5</Text>
+                <Text style={s.badge}>Step 2 of 6</Text>
                 <Text style={s.title}>Study Destination</Text>
                 <Text style={s.sub}>Where and what do you want to study?</Text>
 
@@ -80,7 +86,9 @@ export default function Step2_Country({ navigation }) {
 
 const s = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F5F8FF' },
-    top: { alignItems: 'center', marginTop: 16 },
+    top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingHorizontal: 16 },
+    backBtn: { minWidth: 64 },
+    backText: { color: '#1A237E', fontWeight: '600', fontSize: 14 },
     scroll: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 20, flexGrow: 1, justifyContent: 'center' },
     badge: { fontSize: 12, color: '#1A237E', fontWeight: 'bold', backgroundColor: '#E8EAF6', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginBottom: 10, overflow: 'hidden' },
     title: { fontSize: 24, fontWeight: 'bold', color: '#1A237E', marginBottom: 4 },
