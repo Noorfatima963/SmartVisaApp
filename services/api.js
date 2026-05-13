@@ -16,9 +16,9 @@ import { getToken } from './storage';
 // e.g. http://192.168.1.5:8000
 // const BASE_URL = 'https://urinous-gloopily-beaulah.ngrok-free.dev';   // Android emulator
 // const BASE_URL = 'http://10.0.2.2:8000';   // Android emulator
-// const BASE_URL = 'https://smartvisa.pythonanywhere.com';   // live hosted site url
+const BASE_URL = 'https://smartvisa.pythonanywhere.com';   // live hosted site url
 // const BASE_URL = 'http://localhost:8000'; // iOS simulator
-const BASE_URL = 'https://urinous-gloopily-beaulah.ngrok-free.dev';   // ngrok url
+// const BASE_URL = 'https://urinous-gloopily-beaulah.ngrok-free.dev';   // ngrok url
 
 // ── Core Request Helper ────────────────────────────────────────────────────────
 async function request(method, endpoint, body = null, requiresAuth = true) {
